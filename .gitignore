@@ -6,3 +6,6 @@
 
 # Ignore SQL Server database files
 /dbdata/
+
+# Ignore environment variables
+.env
