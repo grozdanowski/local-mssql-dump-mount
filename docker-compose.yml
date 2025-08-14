@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  mssql-db:
+    build: .
+    platform: linux/amd64 # Forces x86 image on Apple Silicon
+    container_name: mssql-db
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: ${SA_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      BACKUP_FILE: ${BACKUP_FILE}
+      MSSQL_MEMORY_LIMIT_MB: 2048
+      MSSQL_AGENT_ENABLED: false
+      MSSQL_LCID: 1033
+      MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
+    volumes:
+      - ./backups:/backups # Mount your local backup folder
+      - ./init:/usr/src/app # Mount the restore script
+    deploy:
+      resources:
+        limits:
+          memory: 10G
+        reservations:
+          memory: 4G
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "/opt/mssql-tools18/bin/sqlcmd",
+          "-S",
+          "localhost",
+          "-U",
+          "sa",
+          "-P",
+          "${SA_PASSWORD}",
+          "-Q",
+          "SELECT 1",
+          "-C",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  restore-db:
+    build: .
+    platform: linux/amd64
+    container_name: mssql-restore
+    depends_on:
+      mssql-db:
+        condition: service_healthy
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: ${SA_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      BACKUP_FILE: ${BACKUP_FILE}
+    volumes:
+      - ./backups:/backups
+      - ./init:/usr/src/app
+    command: ["/bin/bash", "/usr/src/app/restore.sh"]
+    restart: "no"
