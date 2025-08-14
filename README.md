@@ -96,11 +96,19 @@ docker-compose up --build    # Restores database every time
 docker-compose down          # Stops and removes container
 ```
 
-**Option 2: Reuse existing container (no restore) - DOES NOT WORK YET - IN PROGRESS**
+**Option 2: Reuse existing container (no restore)**
 
 ```bash
-docker-compose start         # Start existing containers without restore
 docker-compose stop          # Stop containers but keep them
+docker-compose start         # Start existing containers without restore
+```
+
+**Option 3: Keep container running (recommended for development)**
+
+```bash
+docker-compose up            # Start and keep running
+# Use Ctrl+C to stop, then:
+docker-compose start         # Resume without restore
 ```
 
 **⚠️ Important Note**: This project uses a **two-service architecture**:
@@ -108,7 +116,11 @@ docker-compose stop          # Stop containers but keep them
 - **`mssql-db`**: Main SQL Server that stays running
 - **`restore-db`**: Service that runs restore script and exits
 
-The `restore-db` service runs the restore script every time you use `docker-compose up` (with or without `--build`). To avoid re-restoring, use `docker-compose start` instead.
+**Key difference**:
+
+- `docker-compose down` **removes** containers (use `docker-compose up --build` to restore)
+- `docker-compose stop` **keeps** containers (use `docker-compose start` to resume)
+- `docker-compose up` **always** runs the restore script
 
 ## How It Works
 
