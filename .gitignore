@@ -1,4 +1,8 @@
+# Ignore backup files but keep folder structure
 /backups/*
 
 # Keep the folder structure
 !/backups/.gitkeep
+
+# Ignore SQL Server database files
+/dbdata/
