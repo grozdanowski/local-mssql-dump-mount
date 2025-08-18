@@ -18,12 +18,42 @@ check_sql_server() {
     fi
 }
 
-log "=== Starting MSSQL Database Restore Process ==="
+log "=== Starting MSSQL Database Process ==="
 log "Container startup time: $(date)"
 log "Environment variables:"
 log "  DB_NAME: ${DB_NAME:-TestDB (default)}"
-log "  BACKUP_FILE: ${BACKUP_FILE:-/backups/test.bak (default)}"
+log "  BACKUP_FILE: ${BACKUP_FILE:-not specified}"
+log "  DO_RESTORE: ${DO_RESTORE:-false}"
 log "  SA_PASSWORD: [HIDDEN]"
+
+# Check if restore is requested
+if [ "$DO_RESTORE" != "true" ]; then
+    log "=== Normal startup mode ==="
+    log "DO_RESTORE is not set to 'true', skipping restore process."
+    log "SQL Server will start with existing database state or create a fresh database."
+    log "To restore from backup, use: docker-compose --profile restore up"
+    log "=== Exiting restore script ==="
+    exit 0
+fi
+
+log "=== Restore mode activated ==="
+
+# Validate backup file requirements
+if [ -z "$BACKUP_FILE" ]; then
+    log "ERROR: BACKUP_FILE environment variable is required for restore mode!"
+    log "Please set BACKUP_FILE in your .env file or environment."
+    log "Example: BACKUP_FILE=mybackup.bak"
+    exit 1
+fi
+
+# Check if backup file exists
+if [ ! -f "$BACKUP_FILE" ]; then
+    log "ERROR: Backup file '$BACKUP_FILE' not found!"
+    log "Available backup files:"
+    ls -la /backups/ || log "No backup files found in /backups/"
+    log "Please check your BACKUP_FILE path and ensure the file exists in the ./backups folder."
+    exit 1
+fi
 
 # Wait until SQL Server is ready
 log "=== Phase 1: Waiting for SQL Server to start ==="
@@ -54,19 +84,11 @@ log "SUCCESS: SQL Server is up and responding! (took ${elapsed}s)"
 
 # Extract database name and backup file from env
 DB_NAME=${DB_NAME:-TestDB}
-BACKUP_FILE=${BACKUP_FILE:-/backups/test.bak}
+BACKUP_FILE=${BACKUP_FILE}
 
 log "=== Phase 2: Preparing for database restore ==="
 log "Target database: $DB_NAME"
 log "Backup file: $BACKUP_FILE"
-
-# Check if backup file exists
-if [ ! -f "$BACKUP_FILE" ]; then
-    log "ERROR: Backup file '$BACKUP_FILE' not found!"
-    log "Available backup files:"
-    ls -la /backups/ || log "No backup files found in /backups/"
-    exit 1
-fi
 
 log "Backup file found: $(ls -lh "$BACKUP_FILE")"
 
@@ -77,7 +99,7 @@ log "Raw FILELISTONLY output:"
     -Q "RESTORE FILELISTONLY FROM DISK = N'$BACKUP_FILE'" -h -1 -C
 
 LOGICAL_NAME=$(/opt/mssql-tools18/bin/sqlcmd -S mssql-db -U sa -P "$SA_PASSWORD" \
-    -Q "RESTORE FILELISTONLY FROM DISK = N'$BACKUP_FILE'" -h -1 -C | awk 'NR==1 {print $1}' | tr -d '\r\n')
+-Q "RESTORE FILELISTONLY FROM DISK = N'$BACKUP_FILE'" -h -1 -C | awk 'NR==1 {print $1}' | tr -d '\r\n')
 
 if [ -z "$LOGICAL_NAME" ]; then
     log "ERROR: Failed to extract logical file names from backup!"

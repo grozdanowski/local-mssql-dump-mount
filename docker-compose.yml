@@ -10,8 +10,9 @@ services:
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: ${SA_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      BACKUP_FILE: ${BACKUP_FILE}
+      DB_NAME: ${DB_NAME:-TestDB}
+      BACKUP_FILE: ${BACKUP_FILE:-}
+      DO_RESTORE: ${DO_RESTORE:-false}
       MSSQL_MEMORY_LIMIT_MB: 2048
       MSSQL_AGENT_ENABLED: false
       MSSQL_LCID: 1033
@@ -19,6 +20,7 @@ services:
     volumes:
       - ./backups:/backups # Mount your local backup folder
       - ./init:/usr/src/app # Mount the restore script
+      - ./dbdata:/var/opt/mssql/data # Persist database data
     deploy:
       resources:
         limits:
@@ -55,10 +57,12 @@ services:
     environment:
       ACCEPT_EULA: Y
       SA_PASSWORD: ${SA_PASSWORD}
-      DB_NAME: ${DB_NAME}
-      BACKUP_FILE: ${BACKUP_FILE}
+      DB_NAME: ${DB_NAME:-TestDB}
+      BACKUP_FILE: ${BACKUP_FILE:-}
+      DO_RESTORE: "true"
     volumes:
       - ./backups:/backups
       - ./init:/usr/src/app
     command: ["/bin/bash", "/usr/src/app/restore.sh"]
     restart: "no"
+    profiles: ["restore"]

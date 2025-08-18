@@ -72,38 +72,60 @@ Replace:
 
 ## Usage
 
-### Starting the container:
+### Normal startup (no restore):
 
 ```bash
-docker-compose up --build
+docker-compose up
 ```
 
-**⚠️ Important**: The container will **always restore the database** on startup, even if it was restored before. This ensures your database is always in a fresh, consistent state.
+**What happens**: SQL Server starts with existing database state or creates a fresh database. No backup restoration occurs.
 
-### What happens on startup:
+### Restore from backup:
+
+```bash
+docker-compose --profile restore up
+```
+
+**What happens**:
 
 1. Start SQL Server 2019.
-2. Check if the database exists and matches the backup file.
-3. **Always restore** the database from the backup file (drops existing if present).
-4. Keep running to maintain the database connection.
+2. Restore database from the specified backup file.
+3. Keep running to maintain the database connection.
+
+**Requirements for restore mode**:
+
+- `BACKUP_FILE` environment variable must be set
+- Backup file must exist in the `./backups` folder
+- `DO_RESTORE=true` (automatically set when using `--profile restore`)
 
 ### Container lifecycle options:
 
-**Option 1: Fresh start (always restores)**
+**Option 1: Normal startup (no restore)**
 
 ```bash
-docker-compose up --build    # Restores database every time
-docker-compose down          # Stops and removes container
+docker-compose up            # Start with existing database state
+docker-compose down          # Stops and removes containers
 ```
 
-**Option 2: Reuse existing container (no restore)**
+**⚠️ WARNING**: `docker-compose down` **DELETES ALL DATABASE DATA**!
+
+**Option 2: Restore from backup**
+
+```bash
+docker-compose --profile restore up    # Restore database from backup
+docker-compose down                    # Stops and removes containers
+```
+
+**⚠️ WARNING**: `docker-compose down` **DELETES ALL DATABASE DATA**!
+
+**Option 3: Reuse existing container**
 
 ```bash
 docker-compose stop          # Stop containers but keep them
 docker-compose start         # Start existing containers without restore
 ```
 
-**Option 3: Keep container running (recommended for development)**
+**Option 4: Keep container running (recommended for development)**
 
 ```bash
 docker-compose up            # Start and keep running
@@ -114,13 +136,23 @@ docker-compose start         # Resume without restore
 **⚠️ Important Note**: This project uses a **two-service architecture**:
 
 - **`mssql-db`**: Main SQL Server that stays running
-- **`restore-db`**: Service that runs restore script and exits
+- **`restore-db`**: Service that runs restore script and exits (only when using `--profile restore`)
 
-**Key difference**:
+**Key differences**:
 
-- `docker-compose down` **removes** containers (use `docker-compose up --build` to restore)
+- `docker-compose up` **starts normally** without restore (uses existing database state)
+- `docker-compose --profile restore up` **runs restore script** and restores from backup
+- `docker-compose down` **removes** containers
 - `docker-compose stop` **keeps** containers (use `docker-compose start` to resume)
-- `docker-compose up` **always** runs the restore script
+
+**🚨 CRITICAL: Database Data Persistence**
+
+- **`docker-compose down`** → **DELETES ALL DATABASE DATA** (containers + volumes removed)
+- **`docker-compose stop`** → **PRESERVES database data** (containers stopped but data kept)
+- **`docker-compose start`** → **Resumes with existing data** (no data loss)
+
+**For development**: Use `stop/start` to preserve your database between sessions.
+**For fresh start**: Use `down/up` when you want to start completely clean.
 
 ## How It Works
 
@@ -145,9 +177,24 @@ The restore script:
 
 ## Notes
 
-• To restore a new backup, simply update `BACKUP_FILE` in `.env` and restart the container.
-• The script will automatically detect changes and recreate the database.
+• To restore from a backup, use `docker-compose --profile restore up` with `BACKUP_FILE` set in `.env`.
+• For normal startup without restore, simply use `docker-compose up` (no backup file required).
+• The script will automatically detect changes and recreate the database when in restore mode.
 • Make sure the SQL Server password meets complexity requirements.
 • The container exposes port 1433 for local connections.
-• Uses SQL Server 2022 on Linux with performance optimizations for Apple Silicon.
+• Uses SQL Server 2019 on Linux with performance optimizations for Apple Silicon.
 • **Note for Apple M chips**: Startup takes 2-4 minutes due to x86_64 emulation, but includes memory and startup optimizations to improve performance.
+
+## Best Practices
+
+### **Data Persistence:**
+
+- **Daily development**: Use `docker-compose stop` and `docker-compose start` to preserve your database
+- **Fresh start needed**: Use `docker-compose down` and `docker-compose up` (but remember this deletes all data)
+- **Backup before major changes**: Always restore from backup if you need to start fresh
+
+### **Workflow Recommendations:**
+
+1. **First time setup**: `docker-compose --profile restore up` (restores from backup)
+2. **Daily development**: `docker-compose stop` → `docker-compose start` (preserves data)
+3. **When you need fresh**: `docker-compose down` → `docker-compose --profile restore up` (restores again)
