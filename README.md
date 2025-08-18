@@ -1,5 +1,7 @@
 # MSSQL Docker Backup & Restore
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 This project provides a Dockerized Microsoft SQL Server setup that automatically restores a database from a `.bak` backup file (file doesn't need to even have that extension). The restore process is fully automated, so the only thing you need to do is configure your environment variables and run `docker-compose up`.
 
 ---
@@ -198,3 +200,17 @@ The restore script:
 1. **First time setup**: `docker-compose --profile restore up` (restores from backup)
 2. **Daily development**: `docker-compose stop` → `docker-compose start` (preserves data)
 3. **When you need fresh**: `docker-compose down` → `docker-compose --profile restore up` (restores again)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+The MIT License is a permissive license that allows for:
+
+- Commercial use
+- Modification
+- Distribution
+- Private use
+- Patent use
+
+The only requirement is that the license and copyright notice be included in all copies or substantial portions of the software.
